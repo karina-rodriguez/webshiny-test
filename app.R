@@ -140,30 +140,22 @@ server <- function(input, output) {
 #   print("hello function")
   # getData()
 #   #here is a funciton to get the data
-  # data <- reactive({
-  #   input$newplot
-  #   # Add a little noise to the cars data so the points move
-  #   # mydata <- read.csv("www/testdata_encoding_sample_forlarger_normalised.csv")
-  #
-  #   # print(cars + rnorm(nrow(cars)))
-  #
-  #   read.csv("www/images_9K_data.csv", header = TRUE,
-  #                  nrows=5000, sep = ",",
-  #                  colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
-  #
-  #
-  #   # print(class(mydata["x"]))
-  # })
+  data <- reactive({
+    input$newplot
+    # Add a little noise to the cars data so the points move
+    # mydata <- read.csv("www/testdata_encoding_sample_forlarger_normalised.csv")
+
+    # print(cars + rnorm(nrow(cars)))
+
+    read.csv("www/images_9K_data.csv", header = TRUE,
+                   nrows=5000, sep = ",",
+                   colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
+
+
+    # print(class(mydata["x"]))
+  })
 
 # COL= mydata$colour
-  # output$plot <- renderPlot({
-  #   d <- mydata
-  #   plot(d$x, d$y,
-  #     #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
-  #        pch = 19,
-  #        bg = mydata$colour,
-  #        col = mydata$colour)
-  # })
   output$plot <- renderPlot({
     d <- mydata
     plot(d$x, d$y,
