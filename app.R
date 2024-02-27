@@ -8,10 +8,10 @@
 # https://shiny.posit.co/r/getstarted/shiny-basics/lesson1/index.html
 # https://medium.com/@rami.krispin/deploy-shiny-app-on-github-pages-b4cbd433bdc#:~:text=Shinylive%20code%20editor.-,Deploy%20the%20App%20on%20Github%20Pages,up%20the%20Github%20Pages%20website.
 # shinylive::export(appdir = "/Users/kre/workspace/research/websites/2024-paper-visualisation-ml/2024-visualisation-website", destdir = "docs")
-# scp -P 25088 -r docs/. qn58tc6y@lhcp4025.webapps.net:/home/qn58tc6y/designarchives.culturedigitalskills.org/.
 library(shiny)
 library(colorspace)
 library(plyr)
+library (dplyr)
 
 # library(ggplot2)
 
@@ -24,7 +24,8 @@ getMyData <- function() { # create a function with the name my_function
   # print(data)
   # print(mtcars)
   data <- read.csv("www/images_9K_data.csv", header = TRUE,
-           nrows=5000, sep = ",",
+           # nrows=all,
+           sep = ",",
            colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
   data$colour = data$predicted1 #create column 'Rate2' and make it equal to 'Rate' (duplicate).
 
@@ -65,7 +66,11 @@ ui <- fluidPage(
       sidebarPanel(
                    h3("Fliter by"),
                    width = 2,
-                   checkboxGroupInput('mycheck',h5("Categories"),
+                   uiOutput("selnodes"),
+                   #*****REACTIVE SOURCE******
+                   # actionButton("sourceUpdate", "Update"),
+
+                   checkboxGroupInput('sourceChecked',h5("Categories"),
                                       choices = unique(mydata$predicted1),
                                       selected = unique(mydata$predicted1)
                                       )
@@ -86,14 +91,17 @@ ui <- fluidPage(
         fluidRow(style = 'width: 100%; margin: auto;',
           column(width = 8,
                  style = 'width: 80%; margin: auto;',
+                 #*****REACTIVE SOURCE******
                  plotOutput("plot", height=500,
                             click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
                             hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
                             brush = brushOpts(id = "plot_brush")
                  ),
                  h4("Brushed points"),
+                 #*****REACTIVE SOURCE******
                  tableOutput("plot_brushedpoints"),
                  h4("Clicked points"),
+                 #*****REACTIVE SOURCE******
                  tableOutput("plot_clickedpoints"),
           ),
         ),
@@ -133,63 +141,144 @@ ui <- fluidPage(
 
 )
 
+server <- function(input, output, session) {
+  # output$selnodes <- renderUI({
+  #   checkboxGroupInput('mycheck',h5("Categories"),
+  #                      choices = unique(mydata$predicted1),
+  #                      selected = unique(mydata$predicted1)
+  #   )
+  # })
 
 
-server <- function(input, output) {
-#
-#   print("hello function")
-  # getData()
-#   #here is a funciton to get the data
-  data <- reactive({
-    input$newplot
-    # Add a little noise to the cars data so the points move
-    # mydata <- read.csv("www/testdata_encoding_sample_forlarger_normalised.csv")
-
-    # print(cars + rnorm(nrow(cars)))
-
-    read.csv("www/images_9K_data.csv", header = TRUE,
-                   nrows=5000, sep = ",",
-                   colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
-
-
-    # print(class(mydata["x"]))
-  })
-
-# COL= mydata$colour
   output$plot <- renderPlot({
-    d <- mydata
-    plot(d$x, d$y,
-      #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
+    # Take a dependency on input$update so this only happens when an update is pressed
+    print(input$sourceUpdate)
+    print(input$sourceChecked)
+    # mydata[mydata$predicted1 == input$sourceChecked]
+    # Apply filters
+    mydata <- filter(mydata,predicted1 %in% input$sourceChecked)
+    print(mydata)
+    plot(mydata$x, mydata$y,
+         #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
          pch = 19,
          bg = mydata$colour,
          col = mydata$colour)
+
+    # output$plot_clickinfo <- renderPrint({
+    #     cat("Click:\n")
+    #     str(input$plot_click)
+    #   })
+    # output$plot_hoverinfo <- renderPrint({
+    #   cat("Hover (throttled):\n")
+    #   str(input$plot_hover)
+    # })
+    # output$plot_brushinfo <- renderPrint({
+    #   cat("Brush (debounced):\n")
+    #   str(input$plot_brush)
+    # })
+    output$plot_clickedpoints <- renderTable({
+      # For base graphics, we need to specify columns, though for ggplot2,
+      # it's usually not necessary.
+      res <- nearPoints(mydata, input$plot_click, "x", "y")
+      if (nrow(res) == 0)
+        return()
+      res
+    })
+    output$plot_brushedpoints <- renderTable({
+      res <- brushedPoints(mydata, input$plot_brush, "x", "y")
+      if (nrow(res) == 0)
+        return()
+      res
+    })
   })
-  output$plot_clickinfo <- renderPrint({
-    cat("Click:\n")
-    str(input$plot_click)
-  })
-  output$plot_hoverinfo <- renderPrint({
-    cat("Hover (throttled):\n")
-    str(input$plot_hover)
-  })
-  output$plot_brushinfo <- renderPrint({
-    cat("Brush (debounced):\n")
-    str(input$plot_brush)
-  })
-  output$plot_clickedpoints <- renderTable({
-    # For base graphics, we need to specify columns, though for ggplot2,
-    # it's usually not necessary.
-    res <- nearPoints(data(), input$plot_click, "x", "y")
-    if (nrow(res) == 0)
-      return()
-    res
-  })
-  output$plot_brushedpoints <- renderTable({
-    res <- brushedPoints(data(), input$plot_brush, "x", "y")
-    if (nrow(res) == 0)
-      return()
-    res
-  })
+  # print("hello function")
+  # getData()
+  #here is a funciton to get the data
+  # observe({
+  #   req(input$update)
+  #   print("here"+input$mycheck)
+  #
+  #   rng <- reactive({
+  #     print("I am here")
+  #     input$mycheck
+  #     print(input$selnodes)
+  #
+  #     })
+  #   values <-rng()
+  #
+  # })
+  # values <- reactiveValues(mydata=c())
+
+
+  # data <- reactive({
+  #   input$newplot
+  #   # Add a little noise to the cars data so the points move
+  #   cars + rnorm(nrow(cars))
+  # })
+
+  # data <- reactive({
+  #   # input$newplot
+  #   thedata <- read.csv("www/images_9K_data.csv", header = TRUE,
+  #                    nrows=5000, sep = ",",
+  #                    colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
+  #   thedata$colour = thedata$predicted1 #create column 'colour' and make it equal to 'pedicted1' (duplicate).
+  #
+  #   uniquevalues <- unique(thedata$predicted1)
+  #   #https://cran.r-project.org/web/packages/colorspace/vignettes/hcl-colors.pdf
+  #   dc <- rainbow_hcl(length(uniquevalues),  c = 50, l = 70, start = 0, end = 360*(length(uniquevalues)-1)/length(uniquevalues))
+  #   thedata$colour <- mapvalues(thedata$colour,from=uniquevalues,to=dc)
+  #   thedata
+  # })
+
+# COL= mydata$colour
+  # output$plot <- renderPlot({
+  #   # d <- mydata
+  #   d <- data()
+  #   plot(d$x, d$y,
+  #     #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
+  #        pch = 19,
+  #        bg = d$colour,
+  #        col = d$colour)
+  # })
+
+  # output$plot <- renderPlot({
+  #   d <- data()
+  #   plot(d$x, d$y)
+  # })
+  # output$plot <- renderPlot({
+  #   # tt <- rng()
+  #   plot(mydata$x, mydata$y,
+  #     #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
+  #        pch = 19,
+  #        bg = mydata$colour,
+  #        col = mydata$colour)
+  # })
+  # output$plot_clickinfo <- renderPrint({
+  #   cat("Click:\n")
+  #   str(input$plot_click)
+  # })
+  # output$plot_hoverinfo <- renderPrint({
+  #   cat("Hover (throttled):\n")
+  #   str(input$plot_hover)
+  # })
+  # output$plot_brushinfo <- renderPrint({
+  #   cat("Brush (debounced):\n")
+  #   str(input$plot_brush)
+  # })
+  # output$plot_clickedpoints <- renderTable({
+  #   # For base graphics, we need to specify columns, though for ggplot2,
+  #   # it's usually not necessary.
+  #   res <- nearPoints(mydata, input$plot_click, "x", "y")
+  #   if (nrow(res) == 0)
+  #     return()
+  #   res
+  # })
+  # output$plot_brushedpoints <- renderTable({
+  #   res <- brushedPoints(mydata, input$plot_brush, "x", "y")
+  #   if (nrow(res) == 0)
+  #     return()
+  #   res
+  # })
 
 }
 
