@@ -2,6 +2,7 @@
 # This is a Shiny web application. You can run the application by clicking
 # the 'Run App' button above.
 #
+# run from CommandLine
 # Find out more about building applications with Shiny here:
 #
 #    http://shiny.rstudio.com/
@@ -12,6 +13,7 @@ library(shiny)
 library(colorspace)
 library(plyr)
 library (dplyr)
+library(stringr)
 
 # library(ggplot2)
 
@@ -23,21 +25,33 @@ getMyData <- function() { # create a function with the name my_function
   # print(nrow(data))
   # print(data)
   # print(mtcars)
-  data <- read.csv("www/images_9K_data.csv", header = TRUE,
+  data <- read.csv("www/images_9K_data_wcorrectnames.csv", header = TRUE,
            # nrows=all,
            sep = ",",
            colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
   data$colour = data$predicted1 #create column 'Rate2' and make it equal to 'Rate' (duplicate).
-
-  print(data)
+  #URL
+  #https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg
+  #https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg
+  # string1 <- data$file
+  # string2 <- "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/"
+  # string2 <- "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/"
+  mystring  = paste("https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",str_sub(data$file,0,-5),"/full/200,/0/color.jpg", sep = "")
+  mystringwithurl = paste("a(\"Google Homepage\", href=\"",mystring,"\")", sep = "")
+  print(mystringwithurl)
+  data$urldata <- mystring
+  # urldata="https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F"+data$file+"/full/200,/0/color.jpg"
+  # data$urldata = urldata
+  # print(data$urldata)
 
   uniquevalues <- unique(data$predicted1)
-  print(uniquevalues)
+  # print(uniquevalues)
   #https://cran.r-project.org/web/packages/colorspace/vignettes/hcl-colors.pdf
   dc <- rainbow_hcl(length(uniquevalues),  c = 50, l = 70, start = 0, end = 360*(length(uniquevalues)-1)/length(uniquevalues))
   # print(data$colour)
+
   data$colour <- mapvalues(data$colour,from=uniquevalues,to=dc)
-  print(data)
+  # print(data)
 
 
   # print(unique(data$predicted1));
@@ -149,15 +163,22 @@ server <- function(input, output, session) {
   #   )
   # })
 
+  ## function to turn txt into link --------------
+  ToLink <- function(txt,link) {
+    # paste0('<a href=',link,">",txt,'</a>')
+    # img(src = "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/Johannes_Vermeer_Het_melkmeisje/full/300,/00/color.jpg", width=500),
+
+    paste('img(src = "',link,'", width=500)')
+  }
 
   output$plot <- renderPlot({
     # Take a dependency on input$update so this only happens when an update is pressed
-    print(input$sourceUpdate)
-    print(input$sourceChecked)
+    # print(input$sourceUpdate)
+    # print(input$sourceChecked)
     # mydata[mydata$predicted1 == input$sourceChecked]
     # Apply filters
     mydata <- filter(mydata,predicted1 %in% input$sourceChecked)
-    print(mydata)
+    # print(mydata)
     plot(mydata$x, mydata$y,
          #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
          pch = 19,
@@ -176,20 +197,45 @@ server <- function(input, output, session) {
     #   cat("Brush (debounced):\n")
     #   str(input$plot_brush)
     # })
-    output$plot_clickedpoints <- renderTable({
+    output$plot_clickedpoints <-
+      renderTable({
       # For base graphics, we need to specify columns, though for ggplot2,
       # it's usually not necessary.
-      res <- nearPoints(mydata, input$plot_click, "x", "y")
+      res <- nearPoints(
+        mydata,
+        input$plot_click, "x", "y")
+      print(res)
       if (nrow(res) == 0)
         return()
+      myimage="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png"
+      example = "https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F101and.102-O/full/200,/0/color.jpg"
+      #https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F103and104-O/full/200,/0/color.jpg
+      example1 = "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg"
+      res$urldata <-
+        paste(HTML("<img src=",res$urldata," width='80px'>"))
+
+        # paste(HTML("<img src=","https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",">"))
+  #       HTML(r"(
+  #   <h1>This is a heading</h1>
+  #   <img src="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png">
+  #   <p class="my-class">This is some text!</p>
+  #   <ul>
+  #     <li>First bullet</li>
+  #     <li>Second bullet</li>
+  #   </ul>
+  # )")
+        # ToLink(res$urldata,res$urldata) #Use ur url/s
+
       res
-    })
+    }, sanitize.text.function = function(x) x)
     output$plot_brushedpoints <- renderTable({
       res <- brushedPoints(mydata, input$plot_brush, "x", "y")
       if (nrow(res) == 0)
         return()
+      res$urldata <-
+        paste(HTML("<img src=",res$urldata," width='80px'>"))
       res
-    })
+    }, sanitize.text.function = function(x) x)
   })
   # print("hello function")
   # getData()
