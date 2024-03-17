@@ -9,6 +9,10 @@
 # https://shiny.posit.co/r/getstarted/shiny-basics/lesson1/index.html
 # https://medium.com/@rami.krispin/deploy-shiny-app-on-github-pages-b4cbd433bdc#:~:text=Shinylive%20code%20editor.-,Deploy%20the%20App%20on%20Github%20Pages,up%20the%20Github%20Pages%20website.
 # shinylive::export(appdir = "/Users/kre/workspace/research/websites/2024-paper-visualisation-ml/2024-visualisation-website", destdir = "docs")
+# then git upload all files
+# git add docs/*
+#git commit -m "new file"
+#git push origin main
 library(shiny)
 library(colorspace)
 library(plyr)
@@ -29,17 +33,27 @@ getMyData <- function() { # create a function with the name my_function
            # nrows=all,
            sep = ",",
            colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
+
   data$colour = data$predicted1 #create column 'Rate2' and make it equal to 'Rate' (duplicate).
   #URL
   #https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg
   #https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg
+  #full/90,/0/color.jpg
   # string1 <- data$file
   # string2 <- "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/"
   # string2 <- "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/"
-  mystring  = paste("https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",str_sub(data$file,0,-5),"/full/200,/0/color.jpg", sep = "")
-  mystringwithurl = paste("a(\"Google Homepage\", href=\"",mystring,"\")", sep = "")
-  print(mystringwithurl)
+
+  mystring  = paste("https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",str_sub(data$file,0,-5),"/full/90,/0/color.jpg", sep = "")
+ #mystringwithurl = paste(HTML("<img src=",mystring," width='80px'>"))
+  #data$image = paste(HTML("<img src='https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",str_sub(data$file,0,-5),"/full/90,/0/color.jpg' width='80px'>", sep = ""))
+  #mystringwithurl = paste("a(\"Google Homepage\", href=\"",mystring,"\")", sep = "")
+  #print(mystring)
   data$urldata <- mystring
+  #data$image = paste(HTML("<h1>YEIII</h1><img src=",mystring," width='80px'>"))
+  #print(data$image)
+  #paste(HTML("<img src=",example2," width='80px'>"))
+  #print(res$urldata)
+  #data$urldata <- mystringwithurl
   # urldata="https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F"+data$file+"/full/200,/0/color.jpg"
   # data$urldata = urldata
   # print(data$urldata)
@@ -68,6 +82,7 @@ getMyData <- function() { # create a function with the name my_function
 }
 mydata <- getMyData();
 ui <- fluidPage(
+
   title = "Test Page: Plotting Embeddings",
   tags$style("#mycheck {font-size:8px;}
              }"
@@ -83,10 +98,10 @@ ui <- fluidPage(
                    uiOutput("selnodes"),
                    #*****REACTIVE SOURCE******
                    # actionButton("sourceUpdate", "Update"),
-
                    checkboxGroupInput('sourceChecked',h5("Categories"),
                                       choices = unique(mydata$predicted1),
-                                      selected = unique(mydata$predicted1)
+                                      selected = unique(mydata$predicted1)[1]
+                                        #unique(mydata$predicted1)
                                       )
                   # checkboxInput("somevalue", "Some value", FALSE),
 
@@ -122,33 +137,8 @@ ui <- fluidPage(
         fluidRow(
           column(width = 4,
 
-          ),
-          # column(width = 4,
-          #        wellPanel(actionButton("newplot", "New plot")),
-          #        verbatimTextOutput("plot_brushinfo")
-          # )
+          )
         ),
-        # bbl = "aa",
-        # h1("Vermeer Painting", align = "center"),
-        # p("Johannes Vermeer was a Dutch Baroque Period painter who specialized in domestic interior scenes of middle-class life. He is considered one of the greatest painters of the Dutch Golden Age. During his lifetime, he was a moderately successful provincial genre painter, recognized in Delft and The Hague."),
-        # strong("strong() makes bold text."),
-        # p(),
-        # br(),
-        # img(src = "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/Johannes_Vermeer_Het_melkmeisje/full/300,/00/color.jpg", width=500),
-        # br(),
-        #
-        # em("em() creates italicized (i.e, emphasized) text."),
-        # br(),
-        # code("code displays your text similar to computer code"),
-        # div("div creates segments of text with a similar style.
-        #     This division of text is all blue because I passed the argument
-        #     'style = color:blue' to div", style = "color:blue"),
-        #
-        # h3("Third level title"),
-        # h4("Fourth level title"),
-        # h5("Fifth level title"),
-        # h6("Sixth level title"),
-        #
 
       )
 )
@@ -156,20 +146,6 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session) {
-  # output$selnodes <- renderUI({
-  #   checkboxGroupInput('mycheck',h5("Categories"),
-  #                      choices = unique(mydata$predicted1),
-  #                      selected = unique(mydata$predicted1)
-  #   )
-  # })
-
-  ## function to turn txt into link --------------
-  ToLink <- function(txt,link) {
-    # paste0('<a href=',link,">",txt,'</a>')
-    # img(src = "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/Johannes_Vermeer_Het_melkmeisje/full/300,/00/color.jpg", width=500),
-
-    paste('img(src = "',link,'", width=500)')
-  }
 
   output$plot <- renderPlot({
     # Take a dependency on input$update so this only happens when an update is pressed
@@ -179,6 +155,7 @@ server <- function(input, output, session) {
     # Apply filters
     mydata <- filter(mydata,predicted1 %in% input$sourceChecked)
     # print(mydata)
+
     plot(mydata$x, mydata$y,
          #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
          pch = 19,
@@ -201,130 +178,50 @@ server <- function(input, output, session) {
       renderTable({
       # For base graphics, we need to specify columns, though for ggplot2,
       # it's usually not necessary.
-      res <- nearPoints(
-        mydata,
-        input$plot_click, "x", "y")
-      print(res)
+      res <- nearPoints(mydata,input$plot_click, "x", "y")
       if (nrow(res) == 0)
         return()
-      myimage="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png"
-      example = "https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F101and.102-O/full/200,/0/color.jpg"
-      #https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F103and104-O/full/200,/0/color.jpg
-      example1 = "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg"
-      res$urldata <-
-        paste(HTML("<img src=",res$urldata," width='80px'>"))
-
-        # paste(HTML("<img src=","https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",">"))
-  #       HTML(r"(
-  #   <h1>This is a heading</h1>
-  #   <img src="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png">
-  #   <p class="my-class">This is some text!</p>
-  #   <ul>
-  #     <li>First bullet</li>
-  #     <li>Second bullet</li>
-  #   </ul>
-  # )")
-        # ToLink(res$urldata,res$urldata) #Use ur url/s
-
+      if (nrow(res) >= 1){
+        mylist <- unlist(res[10],",")
+        print(mylist)
+        mynewlist <- NULL
+        i <- 1
+        for (urls in mylist)
+        {
+          newurl <- paste(HTML("<img src=",urls," width='80px'>"))
+          mynewlist[[i]] <- newurl
+          i <- i + 1
+        }
+        res[10] <- replace(res[10], 1, list(mynewlist))
+      }
       res
     }, sanitize.text.function = function(x) x)
-    output$plot_brushedpoints <- renderTable({
+
+
+    output$plot_brushedpoints <-
+      renderTable({
       res <- brushedPoints(mydata, input$plot_brush, "x", "y")
       if (nrow(res) == 0)
         return()
-      res$urldata <-
-        paste(HTML("<img src=",res$urldata," width='80px'>"))
+      if (nrow(res) >= 1){
+        mylist <- unlist(res[10],",")
+        print(mylist)
+        mynewlist <- NULL
+        i <- 1
+        for (urls in mylist)
+        {
+          newurl <- paste(HTML("<img src=",urls," width='80px'>"))
+          mynewlist[[i]] <- newurl
+          i <- i + 1
+        }
+        res[10] <- replace(res[10], 1, list(mynewlist))
+
+      }
       res
     }, sanitize.text.function = function(x) x)
+  #closes output render plot
   })
-  # print("hello function")
-  # getData()
-  #here is a funciton to get the data
-  # observe({
-  #   req(input$update)
-  #   print("here"+input$mycheck)
-  #
-  #   rng <- reactive({
-  #     print("I am here")
-  #     input$mycheck
-  #     print(input$selnodes)
-  #
-  #     })
-  #   values <-rng()
-  #
-  # })
-  # values <- reactiveValues(mydata=c())
 
-
-  # data <- reactive({
-  #   input$newplot
-  #   # Add a little noise to the cars data so the points move
-  #   cars + rnorm(nrow(cars))
-  # })
-
-  # data <- reactive({
-  #   # input$newplot
-  #   thedata <- read.csv("www/images_9K_data.csv", header = TRUE,
-  #                    nrows=5000, sep = ",",
-  #                    colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
-  #   thedata$colour = thedata$predicted1 #create column 'colour' and make it equal to 'pedicted1' (duplicate).
-  #
-  #   uniquevalues <- unique(thedata$predicted1)
-  #   #https://cran.r-project.org/web/packages/colorspace/vignettes/hcl-colors.pdf
-  #   dc <- rainbow_hcl(length(uniquevalues),  c = 50, l = 70, start = 0, end = 360*(length(uniquevalues)-1)/length(uniquevalues))
-  #   thedata$colour <- mapvalues(thedata$colour,from=uniquevalues,to=dc)
-  #   thedata
-  # })
-
-# COL= mydata$colour
-  # output$plot <- renderPlot({
-  #   # d <- mydata
-  #   d <- data()
-  #   plot(d$x, d$y,
-  #     #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
-  #        pch = 19,
-  #        bg = d$colour,
-  #        col = d$colour)
-  # })
-
-  # output$plot <- renderPlot({
-  #   d <- data()
-  #   plot(d$x, d$y)
-  # })
-  # output$plot <- renderPlot({
-  #   # tt <- rng()
-  #   plot(mydata$x, mydata$y,
-  #     #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
-  #        pch = 19,
-  #        bg = mydata$colour,
-  #        col = mydata$colour)
-  # })
-  # output$plot_clickinfo <- renderPrint({
-  #   cat("Click:\n")
-  #   str(input$plot_click)
-  # })
-  # output$plot_hoverinfo <- renderPrint({
-  #   cat("Hover (throttled):\n")
-  #   str(input$plot_hover)
-  # })
-  # output$plot_brushinfo <- renderPrint({
-  #   cat("Brush (debounced):\n")
-  #   str(input$plot_brush)
-  # })
-  # output$plot_clickedpoints <- renderTable({
-  #   # For base graphics, we need to specify columns, though for ggplot2,
-  #   # it's usually not necessary.
-  #   res <- nearPoints(mydata, input$plot_click, "x", "y")
-  #   if (nrow(res) == 0)
-  #     return()
-  #   res
-  # })
-  # output$plot_brushedpoints <- renderTable({
-  #   res <- brushedPoints(mydata, input$plot_brush, "x", "y")
-  #   if (nrow(res) == 0)
-  #     return()
-  #   res
-  # })
 
 }
 
