@@ -145,6 +145,28 @@ ui <- fluidPage(
 
 )
 
+process_images_when_clicked_or_brushed <- function(list) {
+  if (nrow(list) >= 1){
+
+    mylist <- unlist(list[10],",")
+    print(mylist)
+    mynewlist <- NULL
+    i <- 1
+    for (urls in mylist)
+    {
+      newurl <- paste(HTML("<img crossorigin='anonymous' src=",urls," width='80px'>"))
+
+
+      mynewlist[[i]] <- newurl
+      i <- i + 1
+    }
+    list[10] <- replace(list[10], 1, list(mynewlist))
+
+  }
+  list <- list[-c(9)]
+  list <- list[c("urldata","predicted1", "predicted2","predicted3","x","y","z","file")]
+  return(list)
+}
 server <- function(input, output, session) {
 
   output$plot <- renderPlot({
@@ -181,47 +203,32 @@ server <- function(input, output, session) {
       res <- nearPoints(mydata,input$plot_click, "x", "y")
       if (nrow(res) == 0)
         return()
-      if (nrow(res) >= 1){
-        mylist <- unlist(res[10],",")
-        print(mylist)
-        mynewlist <- NULL
-        i <- 1
-        for (urls in mylist)
-        {
-          newurl <- paste(HTML("<img src=",urls," width='80px'>"))
-          mynewlist[[i]] <- newurl
-          i <- i + 1
-        }
-        res[10] <- replace(res[10], 1, list(mynewlist))
-      }
-      res
-    }, sanitize.text.function = function(x) x)
+      res <- process_images_when_clicked_or_brushed(res)
 
+    }, sanitize.text.function = function(x) x)
 
     output$plot_brushedpoints <-
       renderTable({
       res <- brushedPoints(mydata, input$plot_brush, "x", "y")
       if (nrow(res) == 0)
         return()
-      if (nrow(res) >= 1){
-        mylist <- unlist(res[10],",")
-        print(mylist)
-        mynewlist <- NULL
-        i <- 1
-        for (urls in mylist)
-        {
-          newurl <- paste(HTML("<img src=",urls," width='80px'>"))
-          mynewlist[[i]] <- newurl
-          i <- i + 1
-        }
-        res[10] <- replace(res[10], 1, list(mynewlist))
+      res <- process_images_when_clicked_or_brushed(res)
 
-      }
-      res
     }, sanitize.text.function = function(x) x)
   #closes output render plot
   })
+  #event to show the image in larger size
 
+  observeEvent(input$show, {
+    showModal(modalDialog(
+      title = "Your Image",
+      "Here is the selected image!",
+      HTML('<img src="temp.png" width="550" >'),
+      size="l",
+      fade=F,
+      easyClose = TRUE
+    ))
+  })
 
 }
 
