@@ -35,16 +35,11 @@ getMyData <- function() { # create a function with the name my_function
            colClasses=c("x"="numeric","y"="numeric","z"="numeric"))
 
   data$colour = data$predicted1 #create column 'Rate2' and make it equal to 'Rate' (duplicate).
-  #URL
-  #https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg
-  #https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F101and102-O/full/200,/0/color.jpg
-  #full/90,/0/color.jpg
-  # string1 <- data$file
-  # string2 <- "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/"
-  # string2 <- "https://6fzwqjk2sg.execute-api.eu-west-2.amazonaws.com/latest/iiif/2/"
-
-  mystring  = paste("https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",str_sub(data$file,0,-5),"/full/90,/0/color.jpg", sep = "")
- #mystringwithurl = paste(HTML("<img src=",mystring," width='80px'>"))
+  filename <- str_sub(data$file,0,-5)
+  print(filename)
+  filenamewithoutplus <- str_replace(filename, "[+]", "%2B")
+  mystring  = paste("https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",filenamewithoutplus,"/full/90,/0/color.jpg", sep = "")
+  #mystringwithurl = paste(HTML("<img src=",mystring," width='80px'>"))
   #data$image = paste(HTML("<img src='https://kuybs3qucnn2f6djohgb2cscbm0bppme.lambda-url.eu-west-2.on.aws/iiif/2/designarchives%2F",str_sub(data$file,0,-5),"/full/90,/0/color.jpg' width='80px'>", sep = ""))
   #mystringwithurl = paste("a(\"Google Homepage\", href=\"",mystring,"\")", sep = "")
   #print(mystring)
@@ -87,6 +82,36 @@ ui <- fluidPage(
   tags$style("#mycheck {font-size:8px;}
              }"
   ),
+  # overflow: hidden;
+  tags$head(
+    # Note the wrapping of the string in HTML()
+    tags$style(HTML("
+      @import url('https://fonts.googleapis.com/css2?family=Yusei+Magic&display=swap');
+      body {
+        background-color: #FFF;
+
+      }
+
+      .bubble {
+        width: 150px;
+        height: 70px;
+        line-height: 70px;
+        font-weight: bold;
+        position: absolute;
+        left: 150px;
+        top: 150px;
+        text-align: center;
+        background-color: #ff0000;
+        background-color: #d50000;
+        background-color: #b71c1c;
+        color: rgba(255,255,255,0.9);
+        border-radius: 10px;
+        opacity: 0;
+        will-change: transform;
+      }
+      ")
+    )
+  ),
 
   titlePanel(h1("ML Embeddings for Design Archives
                 Dataset")),
@@ -123,7 +148,7 @@ ui <- fluidPage(
                  #*****REACTIVE SOURCE******
                  plotOutput("plot", height=500,
                             click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
-                            hover = hoverOpts(id = "plot_hover", delayType = "throttle"),
+                            hover = hoverOpts(id = "plot_hover", delay = 0, delayType = "debounce"),
                             brush = brushOpts(id = "plot_brush")
                  ),
                  h4("Brushed points"),
@@ -133,10 +158,18 @@ ui <- fluidPage(
                  #*****REACTIVE SOURCE******
                  tableOutput("plot_clickedpoints"),
           ),
+          column(width = 4,
+                 imageOutput("dimage", width = 60, height = 60),
+                 htmlOutput("picture"),
+
+                 verbatimTextOutput("plot_clickinfo"),
+                 verbatimTextOutput("plot_hoverinfo"),
+                 verbatimTextOutput("plot_brushinfo"),
+
+          )
         ),
         fluidRow(
           column(width = 4,
-
           )
         ),
 
@@ -149,15 +182,17 @@ process_images_when_clicked_or_brushed <- function(list) {
   if (nrow(list) >= 1){
 
     mylist <- unlist(list[10],",")
-    print(mylist)
+    #print(mylist)
     mynewlist <- NULL
     i <- 1
     for (urls in mylist)
     {
-      newurl <- paste(HTML("<img crossorigin='anonymous' src=",urls," width='80px'>"))
+      newurl <- paste(HTML("<a href=",urls,"><img crossorigin='anonymous' src=",urls," width='80px'></a>"))
 
+      #addbutton <- paste0(newurl, actionButton("go", "Enlarge"))
 
-      mynewlist[[i]] <- newurl
+      addbutton <-paste0(newurl)
+      mynewlist[[i]] <- addbutton
       i <- i + 1
     }
     list[10] <- replace(list[10], 1, list(mynewlist))
@@ -168,6 +203,8 @@ process_images_when_clicked_or_brushed <- function(list) {
   return(list)
 }
 server <- function(input, output, session) {
+  reval <- reactiveValues(clickurl=c())
+  selectedRow <- reactiveVal(1)
 
   output$plot <- renderPlot({
     # Take a dependency on input$update so this only happens when an update is pressed
@@ -175,7 +212,10 @@ server <- function(input, output, session) {
     # print(input$sourceChecked)
     # mydata[mydata$predicted1 == input$sourceChecked]
     # Apply filters
-    mydata <- filter(mydata,predicted1 %in% input$sourceChecked)
+    mydata <- filter(mydata,(predicted1  %in% input$sourceChecked))
+                     # (predicted1  %in% input$sourceChecked) |
+                     #   (predicted2  %in% input$sourceChecked)  |
+                     #   (predicted3  %in% input$sourceChecked) )
     # print(mydata)
 
     plot(mydata$x, mydata$y,
@@ -192,10 +232,77 @@ server <- function(input, output, session) {
     #   cat("Hover (throttled):\n")
     #   str(input$plot_hover)
     # })
-    # output$plot_brushinfo <- renderPrint({
-    #   cat("Brush (debounced):\n")
-    #   str(input$plot_brush)
+    # output$plot_clickinfo <- renderPrint({
+    #   cat("Click:\n")
+    #   str(input$plot_click)
     # })
+    # output$dimage <- renderImage({
+    #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
+    #        contentType = 'image/png',
+    #        alt = "This is alternate text")
+    # }, deleteFile = FALSE)
+    output$picture <- renderText({
+      if(!is.null(input$plot_hover)){
+          hover <- input$plot_hover
+          if (!is.null(hover)){
+            #print(hover$x)
+            #print(hover$y)
+            thevalues <- nearPoints(mydata, hover,
+                                    xvar = "x", yvar = "y",
+                                    threshold = 2,
+                                    maxpoints = 1)
+              if (nrow(thevalues) == 0)
+                return()
+              else{
+              mylist <- unlist(thevalues["urldata"],",")
+              # print(mylist)
+              # c('<div class="bubble"><img src="',mylist,'"/></div>')
+               c('<div class="bubble"><img src="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png"/></div>')
+
+              }
+          }
+      }
+      })
+    # output$dimage <- renderImage({
+    # #  cat("Hover (throttled):\n")
+    # #  str(input$plot_hover)
+    #   print(mydata)
+    #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
+    #          contentType = 'image/png',
+    #          alt = "This is alternate text")
+    #   }, deleteFile = TRUE)
+    #   # if(!is.null(input$plot_hover)){
+    #   #   #hover=input$plot_hover
+    #   #   thevalues <- nearPoints(mydata, input$plot_hover, "x", "y")
+    #   #
+    #   #   print(nrow(thevalues))
+    #   #   #dist=sqrt((hover$x-mtcars$mpg)^2+(hover$y-mtcars$disp)^2)
+    #   #   #x=hover$x
+    #   #   #y=hover$y
+    #   #   # thevalues <- nearPoints(mydata,input$plot_hover, threshold = 10, maxpoints = 1,addDist = TRUE)
+    #   #   if (nrow(thevalues) == 0)
+    #   #     return()
+    #   #   #print(thevalues)
+    #   #   #res <- process_images_when_clicked_or_brushed(res)
+    #   #   #print(thevalues)
+    #   #   #cat("Weight (lb/1000)\n")
+    #   #   #str(thevalues)
+    #   #   # str(hover$y)
+    #   #
+    #   #   # if(min(dist) < 3)
+    #   #   #   brushedPoints(mydata, input$plot_brush, "x", "y")[which.min(dist)]
+    #   #    }
+    # # })
+    output$plot_hoverinfo <- renderPrint({
+      cat("Hover (debounced):\n")
+      str(input$plot_hover)
+    })
+    output$plot_brushinfo <- renderPrint({
+      cat("Brush (debounced):\n")
+      str(input$plot_brush)
+    })
+    # output$hoverplot <- renderImage(expr, env = parent.frame(), quoted = FALSE, deleteFile = TRUE)
+
     output$plot_clickedpoints <-
       renderTable({
       # For base graphics, we need to specify columns, though for ggplot2,
@@ -206,7 +313,6 @@ server <- function(input, output, session) {
       res <- process_images_when_clicked_or_brushed(res)
 
     }, sanitize.text.function = function(x) x)
-
     output$plot_brushedpoints <-
       renderTable({
       res <- brushedPoints(mydata, input$plot_brush, "x", "y")
@@ -215,20 +321,39 @@ server <- function(input, output, session) {
       res <- process_images_when_clicked_or_brushed(res)
 
     }, sanitize.text.function = function(x) x)
-  #closes output render plot
+
+    # output$dimage <- renderImage({
+    #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
+    #        contentType = 'image/png',
+    #        alt = "This is alternate text")
+    # }, deleteFile = FALSE)
+    #closes output render plot
   })
+
   #event to show the image in larger size
 
-  observeEvent(input$show, {
+  observeEvent(input$go, {
     showModal(modalDialog(
       title = "Your Image",
       "Here is the selected image!",
-      HTML('<img src="temp.png" width="550" >'),
+      HTML('<img src="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png" width="550" >'),
       size="l",
       fade=F,
       easyClose = TRUE
-    ))
+    )
+
+    )
+    session$sendCustomMessage(type = 'testmessage',
+                              message = 'Thank you for clicking')
+
+    input$go
+    # Use isolate() to avoid dependency on input$n
+    isolate({
+      print(selectedRow)
+    })
+
   })
+
 
 }
 
