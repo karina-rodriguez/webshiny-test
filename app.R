@@ -113,8 +113,7 @@ ui <- fluidPage(
     )
   ),
 
-  titlePanel(h1("ML Embeddings for Design Archives
-                Dataset")),
+  titlePanel(h1("UoB Design Archives - Design Council Photographic Library AI-driven classification")),
   sidebarLayout(position = "left",
 
       sidebarPanel(
