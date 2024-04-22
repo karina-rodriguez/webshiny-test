@@ -18,7 +18,8 @@ library(colorspace)
 library(plyr)
 library (dplyr)
 library(stringr)
-library(rgl)
+library(plotly)
+
 # library(ggplot2)
 
 getMyData <- function() { # create a function with the name my_function
@@ -145,6 +146,7 @@ ui <- fluidPage(
           column(width = 8,
                  style = 'width: 80%; margin: auto;',
                  #*****REACTIVE SOURCE******
+                 plotlyOutput("graph"),
                  plotOutput("plot", height=500,
                             click = "plot_click",  # Equiv, to click=clickOpts(id="plot_click")
                             hover = hoverOpts(id = "plot_hover", delay = 0, delayType = "debounce"),
@@ -206,147 +208,131 @@ server <- function(input, output, session) {
   selectedRow <- reactiveVal(1)
 
 
-
-  output$plot <- renderRglwidget({
-
-
+  output$plot <- renderPlot({
+    # Take a dependency on input$update so this only happens when an update is pressed
+    # print(input$sourceUpdate)
+    # print(input$sourceChecked)
+    # mydata[mydata$predicted1 == input$sourceChecked]
+    # Apply filters
     mydata <- filter(mydata,(predicted1  %in% input$sourceChecked))
-    # (predicted1  %in% input$sourceChecked) |
-    #   (predicted2  %in% input$sourceChecked)  |
-    #   (predicted3  %in% input$sourceChecked) )
+                     # (predicted1  %in% input$sourceChecked) |
+                     #   (predicted2  %in% input$sourceChecked)  |
+                     #   (predicted3  %in% input$sourceChecked) )
     # print(mydata)
 
-    rgl.open(useNULL=T)
-    scatter3d(x= mydata$x, y=mydata$y, z=mydata$z, surface=FALSE, ellipsoid = TRUE)
-    rglwidget()
+    plot(mydata$x, mydata$y,
+         #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
+         pch = 19,
+         bg = mydata$colour,
+         col = mydata$colour)
+
+    # output$plot_clickinfo <- renderPrint({
+    #     cat("Click:\n")
+    #     str(input$plot_click)
+    #   })
+    # output$plot_hoverinfo <- renderPrint({
+    #   cat("Hover (throttled):\n")
+    #   str(input$plot_hover)
+    # })
+    # output$plot_clickinfo <- renderPrint({
+    #   cat("Click:\n")
+    #   str(input$plot_click)
+    # })
+    # output$dimage <- renderImage({
+    #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
+    #        contentType = 'image/png',
+    #        alt = "This is alternate text")
+    # }, deleteFile = FALSE)
+    output$picture <- renderText({
+      if(!is.null(input$plot_hover)){
+          hover <- input$plot_hover
+          if (!is.null(hover)){
+            #print(hover$x)
+            #print(hover$y)
+            thevalues <- nearPoints(mydata, hover,
+                                    xvar = "x", yvar = "y",
+                                    threshold = 2,
+                                    maxpoints = 1)
+              if (nrow(thevalues) == 0)
+                return()
+              else{
+              mylist <- unlist(thevalues["urldata"],",")
+              # print(mylist)
+              # c('<div class="bubble"><img src="',mylist,'"/></div>')
+               c('<div class="bubble"><img src="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png"/></div>')
+
+              }
+          }
+      }
+      })
+    # output$dimage <- renderImage({
+    # #  cat("Hover (throttled):\n")
+    # #  str(input$plot_hover)
+    #   print(mydata)
+    #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
+    #          contentType = 'image/png',
+    #          alt = "This is alternate text")
+    #   }, deleteFile = TRUE)
+    #   # if(!is.null(input$plot_hover)){
+    #   #   #hover=input$plot_hover
+    #   #   thevalues <- nearPoints(mydata, input$plot_hover, "x", "y")
+    #   #
+    #   #   print(nrow(thevalues))
+    #   #   #dist=sqrt((hover$x-mtcars$mpg)^2+(hover$y-mtcars$disp)^2)
+    #   #   #x=hover$x
+    #   #   #y=hover$y
+    #   #   # thevalues <- nearPoints(mydata,input$plot_hover, threshold = 10, maxpoints = 1,addDist = TRUE)
+    #   #   if (nrow(thevalues) == 0)
+    #   #     return()
+    #   #   #print(thevalues)
+    #   #   #res <- process_images_when_clicked_or_brushed(res)
+    #   #   #print(thevalues)
+    #   #   #cat("Weight (lb/1000)\n")
+    #   #   #str(thevalues)
+    #   #   # str(hover$y)
+    #   #
+    #   #   # if(min(dist) < 3)
+    #   #   #   brushedPoints(mydata, input$plot_brush, "x", "y")[which.min(dist)]
+    #   #    }
+    # # })
+    output$plot_hoverinfo <- renderPrint({
+      cat("Hover (debounced):\n")
+      str(input$plot_hover)
+    })
+    output$plot_brushinfo <- renderPrint({
+      cat("Brush (debounced):\n")
+      str(input$plot_brush)
+    })
+    # output$hoverplot <- renderImage(expr, env = parent.frame(), quoted = FALSE, deleteFile = TRUE)
+
+    output$plot_clickedpoints <-
+      renderTable({
+      # For base graphics, we need to specify columns, though for ggplot2,
+      # it's usually not necessary.
+      res <- nearPoints(mydata,input$plot_click, "x", "y")
+      if (nrow(res) == 0)
+        return()
+      res <- process_images_when_clicked_or_brushed(res)
+
+    }, sanitize.text.function = function(x) x)
+    output$plot_brushedpoints <-
+      renderTable({
+      res <- brushedPoints(mydata, input$plot_brush, "x", "y")
+      if (nrow(res) == 0)
+        return()
+      res <- process_images_when_clicked_or_brushed(res)
+
+    }, sanitize.text.function = function(x) x)
+
+    # output$dimage <- renderImage({
+    #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
+    #        contentType = 'image/png',
+    #        alt = "This is alternate text")
+    # }, deleteFile = FALSE)
+    #closes output render plot
   })
 
-  # output$plot <- renderPlot({
-  #   # Take a dependency on input$update so this only happens when an update is pressed
-  #   # print(input$sourceUpdate)
-  #   # print(input$sourceChecked)
-  #   # mydata[mydata$predicted1 == input$sourceChecked]
-  #   # Apply filters
-  #   mydata <- filter(mydata,(predicted1  %in% input$sourceChecked))
-  #                    # (predicted1  %in% input$sourceChecked) |
-  #                    #   (predicted2  %in% input$sourceChecked)  |
-  #                    #   (predicted3  %in% input$sourceChecked) )
-  #   # print(mydata)
-  #
-  #   plot(mydata$x, mydata$y,
-  #        #https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/points.html
-  #        pch = 19,
-  #        bg = mydata$colour,
-  #        col = mydata$colour)
-  #
-  #   # output$plot_clickinfo <- renderPrint({
-  #   #     cat("Click:\n")
-  #   #     str(input$plot_click)
-  #   #   })
-  #   # output$plot_hoverinfo <- renderPrint({
-  #   #   cat("Hover (throttled):\n")
-  #   #   str(input$plot_hover)
-  #   # })
-  #   # output$plot_clickinfo <- renderPrint({
-  #   #   cat("Click:\n")
-  #   #   str(input$plot_click)
-  #   # })
-  #   # output$dimage <- renderImage({
-  #   #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
-  #   #        contentType = 'image/png',
-  #   #        alt = "This is alternate text")
-  #   # }, deleteFile = FALSE)
-  #   output$picture <- renderText({
-  #     if(!is.null(input$plot_hover)){
-  #         hover <- input$plot_hover
-  #         if (!is.null(hover)){
-  #           #print(hover$x)
-  #           #print(hover$y)
-  #           thevalues <- nearPoints(mydata, hover,
-  #                                   xvar = "x", yvar = "y",
-  #                                   threshold = 2,
-  #                                   maxpoints = 1)
-  #             if (nrow(thevalues) == 0)
-  #               return()
-  #             else{
-  #             mylist <- unlist(thevalues["urldata"],",")
-  #             # print(mylist)
-  #             # c('<div class="bubble"><img src="',mylist,'"/></div>')
-  #              c('<div class="bubble"><img src="https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png"/></div>')
-  #
-  #             }
-  #         }
-  #     }
-  #     })
-  #   # output$dimage <- renderImage({
-  #   # #  cat("Hover (throttled):\n")
-  #   # #  str(input$plot_hover)
-  #   #   print(mydata)
-  #   #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
-  #   #          contentType = 'image/png',
-  #   #          alt = "This is alternate text")
-  #   #   }, deleteFile = TRUE)
-  #   #   # if(!is.null(input$plot_hover)){
-  #   #   #   #hover=input$plot_hover
-  #   #   #   thevalues <- nearPoints(mydata, input$plot_hover, "x", "y")
-  #   #   #
-  #   #   #   print(nrow(thevalues))
-  #   #   #   #dist=sqrt((hover$x-mtcars$mpg)^2+(hover$y-mtcars$disp)^2)
-  #   #   #   #x=hover$x
-  #   #   #   #y=hover$y
-  #   #   #   # thevalues <- nearPoints(mydata,input$plot_hover, threshold = 10, maxpoints = 1,addDist = TRUE)
-  #   #   #   if (nrow(thevalues) == 0)
-  #   #   #     return()
-  #   #   #   #print(thevalues)
-  #   #   #   #res <- process_images_when_clicked_or_brushed(res)
-  #   #   #   #print(thevalues)
-  #   #   #   #cat("Weight (lb/1000)\n")
-  #   #   #   #str(thevalues)
-  #   #   #   # str(hover$y)
-  #   #   #
-  #   #   #   # if(min(dist) < 3)
-  #   #   #   #   brushedPoints(mydata, input$plot_brush, "x", "y")[which.min(dist)]
-  #   #   #    }
-  #   # # })
-  #   output$plot_hoverinfo <- renderPrint({
-  #     cat("Hover (debounced):\n")
-  #     str(input$plot_hover)
-  #   })
-  #   output$plot_brushinfo <- renderPrint({
-  #     cat("Brush (debounced):\n")
-  #     str(input$plot_brush)
-  #   })
-  #   # output$hoverplot <- renderImage(expr, env = parent.frame(), quoted = FALSE, deleteFile = TRUE)
-#
-#     output$plot_clickedpoints <-
-#       renderTable({
-#       # For base graphics, we need to specify columns, though for ggplot2,
-#       # it's usually not necessary.
-#       res <- nearPoints(mydata,input$plot_click, "x", "y")
-#       if (nrow(res) == 0)
-#         return()
-#       res <- process_images_when_clicked_or_brushed(res)
-#
-#     }, sanitize.text.function = function(x) x)
-#     output$plot_brushedpoints <-
-#       renderTable({
-#       res <- brushedPoints(mydata, input$plot_brush, "x", "y")
-#       if (nrow(res) == 0)
-#         return()
-#       res <- process_images_when_clicked_or_brushed(res)
-#
-#     }, sanitize.text.function = function(x) x)
-#
-#     # output$dimage <- renderImage({
-#     #   list(src = "https://culturedigitalskills.org/wp-content/uploads/Logo-Banner-4-2048x470.png",
-#     #        contentType = 'image/png',
-#     #        alt = "This is alternate text")
-#     # }, deleteFile = FALSE)
-#     #closes output render plot
-#   })
-
   #event to show the image in larger size
-
   observeEvent(input$go, {
     showModal(modalDialog(
       title = "Your Image",
@@ -368,8 +354,57 @@ server <- function(input, output, session) {
     })
 
   })
+  N <- 100
+  x <- rnorm(N, mean = 50, sd = 2.3)
+  y <- runif(N, min = 0, max = 100)
+  z <- runif(N, min = 4, max = 70)
+  luci.frame <- data.frame(x, y, z)
+  cam.zoom = 2
 
+  mySequence <- seq(0, 100, by = 0.1)
 
+  output$graph <- renderPlotly({
+    plot_ly(
+      type = "scatter3d",
+      mode = "markers",
+      data = luci.frame,
+      x = ~ x,
+      y = ~ y,
+      z = ~ z
+    ) %>%
+      layout(scene = list(camera = list(
+        eye = list(
+          x = cos(mySequence[1]) * cam.zoom,
+          y = sin(mySequence[1]) * cam.zoom,
+          z = 0.3
+        ),
+        center = list(x = 0,
+                      y = 0,
+                      z = 0)
+      )))
+  })
+  myPlotlyProxy <- plotlyProxy("graph")
+  count <- reactiveVal(1L)
+
+  observe({
+    invalidateLater(100)
+    plotlyProxyInvoke(myPlotlyProxy, "relayout", list(scene = list(camera = list(
+      eye = list(
+        x = cos(mySequence[isolate(count())]) * cam.zoom,
+        y = sin(mySequence[isolate(count())]) * cam.zoom,
+        z = 0.3
+      ),
+      center = list(x = 0,
+                    y = 0,
+                    z = 0)
+    ))))
+
+    isolate(count(count()+1))
+
+    if(count() > length(mySequence)){
+      count(1L)
+    }
+  })
 }
 
 shinyApp(ui, server)
